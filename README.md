@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎓 AulaViva
+# AulaViva
 
 ### Sistema de Análisis de Atención y Pose Facial en Tiempo Real
 

@@ -29,6 +29,8 @@ El sistema no se limita a "detectar caras": construye un **modelo geométrico de
 
 ---
 
+<img width="1370" height="912" alt="aulavivagif2" src="https://github.com/user-attachments/assets/e7da8805-cdf3-4764-83f1-bdeba41372d9" />
+
 ## ✨ Características Principales
 
 - 🧑‍🤝‍🧑 **Detección facial multi-rostro con YuNet 2026** — Usa la API DNN de OpenCV 5.0 (`cv::FaceDetectorYN`) con ajuste dinámico de `setInputSize()` por frame y **downscale controlado** (`FACTOR_ESCALA_DETECCION`) para mejorar la confianza en alumnos ubicados al fondo del aula.

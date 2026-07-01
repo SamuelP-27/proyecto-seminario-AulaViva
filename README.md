@@ -17,6 +17,8 @@
 
 ---
 
+<img width="1348" height="534" alt="aulavivagif" src="https://github.com/user-attachments/assets/cb6f573e-6c81-4924-a741-136387e5f8bb" />
+
 ## 📖 Descripción
 
 **AulaViva** es una aplicación de escritorio (C++/Qt) que analiza videos de clases presenciales para medir el nivel de **atención colectiva e individual** de los estudiantes, sin depender de hardware especializado ni sensores adicionales.

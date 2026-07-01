@@ -158,10 +158,10 @@ AulaViva/
 │
 ├── modelos/                     # (No versionado) face_detection_yunet_2026may.onnx
 ├── docs/
-│   ├── Manual-de-Instalacion.txt
-│   └── Manual-de-Usuario.txt
+│   ├── Manual-de-Instalacion.word
+│   └── Manual-de-Usuario.word
 │
-└── frames_extraidos/            # (Generado en runtime) salidas de cada análisis
+└── .../debug/frames_extraidos/            # (Generado en runtime) salidas de cada análisis
 ```
 
 > ⚠️ El modelo `face_detection_yunet_2026may.onnx` y la DLL `opencv_world500d.dll` **no se versionan** en el repositorio (peso/licencia). Deben copiarse manualmente junto al binario compilado (ver sección de instalación).

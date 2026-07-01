@@ -242,7 +242,7 @@ Esta es la DLL de **depuración (Debug)** de OpenCV 5.0.0, generada automáticam
 
 #### 🧠 `face_detection_yunet_2026may.onnx`
 
-El modelo de detección facial tampoco se versiona en el repositorio. Debes:
+El modelo de detección facial se encuentra en el repositorio. Debes:
 
 1. Obtenerlo desde el repositorio oficial de modelos de OpenCV Zoo https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/face_detection_yunet_2026may.onnx, o la fuente que es provista junto al proyecto en la carpeta /modelos.
 2. Copiarlo en la **misma carpeta que `AulaViva.exe`**, o alternativamente en una subcarpeta `modelos/` junto al ejecutable (el código busca en ambas rutas - ver `RUTAS_YUNET` en `procesador_video.cpp`):

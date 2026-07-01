@@ -4,7 +4,7 @@
 
 ### Sistema de Análisis de Atención y Pose Facial en Tiempo Real
 
-**Convierte el video de una clase en métricas pedagógicas accionables**, mapeando la geometría física del aula y estimando hacia dónde mira cada alumno, frame a frame.
+**Convierte el video de una clase en métricas pedagógicas para los profesores**, mapeando la geometría física del aula y estimando hacia dónde mira cada alumno, frame a frame.
 
 ![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)
 ![Qt](https://img.shields.io/badge/Qt-6.11.1-41CD52?style=flat-square&logo=qt&logoColor=white)

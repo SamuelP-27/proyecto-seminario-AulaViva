@@ -11,6 +11,7 @@
 ![OpenCV](https://img.shields.io/badge/OpenCV-5.0.0-5C3EE8?style=flat-square&logo=opencv&logoColor=white)
 ![YuNet](https://img.shields.io/badge/YuNet-2026-orange?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%20(MSVC2022)-lightgrey?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 </div>
 
@@ -298,7 +299,7 @@ Durante el diseño de AulaViva se investigaron proyectos open-source relacionado
 
 ## 📄 Licencia
 
-Este proyecto no se distribuye bajo niguna la licencia, es de libre uso.
+Este proyecto se distribuye bajo la licencia **MIT**, es de libre uso.
 
 ## 👤 Autor
 

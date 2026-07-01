@@ -20,7 +20,7 @@
 
 **AulaViva** es una aplicación de escritorio (C++/Qt) que analiza videos de clases presenciales para medir el nivel de **atención colectiva e individual** de los estudiantes, sin depender de hardware especializado ni sensores adicionales.
 
-El sistema no se limita a "detectar caras": construye un **modelo geométrico del aula** (dónde está la pizarra, dónde se sienta cada alumno) y lo cruza con la **pose de cabeza y el vector de mirada (gaze)** estimados a partir de los landmarks faciales que entrega el detector **YuNet**. El resultado es un veredicto por alumno — *atento* / *distraído* / *sin detección* — con evidencia visual y temporal concreta, pensado para que un docente pueda **auditar su propia clase** sin revisar el video completo manualmente.
+El sistema no se limita a "detectar caras": construye un **modelo geométrico del aula** (dónde está la pizarra, dónde se sienta cada alumno) y lo cruza con la **pose de cabeza y el vector de mirada (gaze)** estimados a partir de los landmarks faciales que entrega el detector **YuNet**. El resultado es un veredicto por alumno: *atento* / *distraído* / *sin detección* con evidencia visual y temporal concreta, pensado para que un docente pueda **evaluar su propia clase** sin revisar el video completo manualmente.
 
 > 💡 **Caso de uso central:** un profesor sube el video de su clase, dibuja una vez la posición de la pizarra y los puestos, y el sistema entrega automáticamente un reporte con el % de atención por alumno, los momentos de mayor dispersión colectiva y una tarjeta de desempeño individual con recomendaciones concretas ("revisa lo cubierto entre el minuto 12:30 y 14:10").
 
@@ -74,52 +74,52 @@ El sistema no se limita a "detectar caras": construye un **modelo geométrico de
 El flujo va desde la **selección del video** hasta los **reportes finales**, pasando por una etapa de calibración espacial que solo se ejecuta una vez por aula:
 
 ```text
-┌──────────────────┐
-│ 1. Selección de  │  QFileDialog (main.cpp)
-│    video (.mp4)  │
+┌───────────────────┐
+│ 1. Selección de   │  QFileDialog (main.cpp)
+│    video (.mp4)   │
 └─────────┬─────────┘
           ▼
-┌──────────────────────────┐
-│ 2. ¿Existe                │  cargarConfigSala()  →  ¿JSON válido?
-│    sala_config.json?      │
-└─────────┬──────────┬──────┘
+┌────────────────────────────────────┐
+│ 2. ¿Existe                         │  cargarConfigSala()  →  ¿JSON válido?
+│    sala_config.json?               │
+└─────────┬───────────────────┬──────┘
      No / inválido    Sí (usar existente)
-          ▼                  │
-┌──────────────────────────┐ │
+          ▼                   │
+┌───────────────────────────┐ │
 │ 3. Asistente Qt de        │ │   configurador_sala.cpp
 │    calibración de sala    │ │   → dibuja pizarra (rotable) y puestos
 │    (guardarConfigSala)    │ │
-└─────────┬──────────────────┘
-          ▼◄─────────────────┘
-┌──────────────────────────────────────────────┐
-│ 4. procesarVideo()  —  bucle frame a frame     │
-│    a. Detección YuNet (cv::FaceDetectorYN)     │
-│    b. Tracking por continuidad espacial        │
-│    c. asociarRostroAPuesto() → id de puesto    │
-│    d. estimador::calcularpose() → yaw/pitch/   │
-│       roll + gazeDir                           │
-│    e. FiltroPose → suavizado por eje           │
+└─────────┬─────────────────┘ │
+          ▼◄──────────────────┘
+┌─────────────────────────────────────────────────┐
+│ 4. procesarVideo()  —  bucle frame a frame      │
+│    a. Detección YuNet (cv::FaceDetectorYN)      │
+│    b. Tracking por continuidad espacial         │
+│    c. asociarRostroAPuesto() → id de puesto     │
+│    d. estimador::calcularpose() → yaw/pitch/    │
+│       roll + gazeDir                            │
+│    e. FiltroPose → suavizado por eje            │
 │    f. EvaluadorAtencion::evaluarFrame() →       │
 │       gazeApuntaAPizarra() + ventana temporal   │
 │    g. Overlay + panel de atención en vivo       │
 │    h. Persistencia async de frames anotados     │
-└─────────────────────┬──────────────────────────┘
+└──────────────────────┬──────────────────────────┘
                        ▼
-┌──────────────────────────────────────────────┐
+┌────────────────────────────────────────────────┐
 │ 5. calcularReporte() + identificarMomentos-    │
 │    Criticos()  (reporte_atencion.cpp)          │
 │    → timeline visual, tarjetas de desempeño,   │
-│      conclusiones pedagógicas por alumno        │
-└─────────────────────┬──────────────────────────┘
+│      conclusiones pedagógicas por alumno       │
+└──────────────────────┬─────────────────────────┘
                        ▼
-┌──────────────────────────────────────────────┐
+┌────────────────────────────────────────────────┐
 │ 6. Exportación final                           │
 │    CSV: frames / eventos / métricas /          │
-│         coordenadas / momentos críticos         │
+│         coordenadas / momentos críticos        │
 │    JSON: reporte_atencion.json,                │
-│          rangos_atencion.json                   │
-│    PNG: frames anotados, tarjetas de desempeño  │
-└──────────────────────────────────────────────┘
+│          rangos_atencion.json                  │
+│    PNG: frames anotados, tarjetas de desempeño │
+└────────────────────────────────────────────────┘
 ```
 
 ### 📤 Artefactos generados por ejecución
@@ -164,7 +164,7 @@ AulaViva/
 └── frames_extraidos/            # (Generado en runtime) salidas de cada análisis
 ```
 
-> ⚠️ El modelo `face_detection_yunet_2026may.onnx` y la DLL `opencv_world500d.dll` **no se versionan** en el repositorio (peso/licencia). Deben copiarse manualmente junto al binario compilado — ver sección de instalación.
+> ⚠️ El modelo `face_detection_yunet_2026may.onnx` y la DLL `opencv_world500d.dll` **no se versionan** en el repositorio (peso/licencia). Deben copiarse manualmente junto al binario compilado (ver sección de instalación).
 
 ---
 
@@ -246,9 +246,8 @@ nmake        # o jom, según tu configuración
 
 ## 📄 Licencia
 
-Este proyecto se distribuye bajo la licencia **MIT**. Ver el archivo `LICENSE` para más detalles.
+Este proyecto no se distribuye bajo niguna la licencia, es de libre uso.
 
 ## 👤 Autor
 
-Desarrollado como proyecto de análisis de visión artificial aplicado a educación.
-¿Preguntas, ideas o mejoras? Abre un *issue* o un *pull request*.
+Desarrollado por estudiantes como proyecto de análisis de visión artificial aplicado a educación :).

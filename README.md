@@ -171,6 +171,8 @@ AulaViva/
 
 > ⚠️ El modelo `face_detection_yunet_2026may.onnx` y la DLL `opencv_world500d.dll` **no se versionan** en el repositorio (peso/licencia). Deben copiarse manualmente junto al binario compilado (ver sección de instalación).
 
+> El video utilizado en la experimentación se encuentra en la carpeta modelos con el fin de probar el programa, allí fueron mapeadas las caras y la pizarra por defecto.
+
 ---
 
 ## 🚀 Instalación y Requisitos

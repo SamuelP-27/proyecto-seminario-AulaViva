@@ -278,6 +278,24 @@ nmake        # o jom, según tu configuración
 
 ---
 
+## 🔎 Proyectos de referencia / Inspiración
+
+Durante el diseño de AulaViva se investigaron proyectos open-source relacionados con detección facial en tiempo real, estimación de pose de cabeza y monitoreo de atención/engagement. Estos repositorios sirvieron como referencia conceptual y punto de partida para varias decisiones de arquitectura:
+
+| Repositorio | Qué aporta | Relación con AulaViva |
+|---|---|---|
+| [`opencv/opencv_zoo`](https://github.com/opencv/opencv_zoo) | Modelo oficial **YuNet** (`.onnx`) y ejemplo de uso con `cv::FaceDetectorYN` | Fuente del modelo de detección facial usado en `procesador_video.cpp` |
+| [`ShiqiYu/libfacedetection`](https://github.com/ShiqiYu/libfacedetection) | Implementación original de **YuNet**, el detector facial ligero en el que se basa el módulo de OpenCV | Referencia del paper/arquitectura detrás del detector integrado |
+| [`ShiqiYu/libfacedetection.train`](https://github.com/ShiqiYu/libfacedetection.train) | Pipeline de entrenamiento de YuNet | Contexto sobre las limitaciones y el rango de tamaños de rostro que el modelo puede detectar |
+| [`yinguobing/head-pose-estimation`](https://github.com/yinguobing/head-pose-estimation) | Estimación de pose de cabeza en tiempo real con landmarks + OpenCV | Referencia para el cálculo de yaw/pitch/roll a partir de landmarks faciales en `estimador.cpp` |
+| [`mpatacchiola/deepgaze`](https://github.com/mpatacchiola/deepgaze) | Librería de estimación de **pose de cabeza y dirección de mirada (gaze)** para interacción humano-computador | Inspiración conceptual para separar el "foco de atención" (head pose) de la mirada real (gaze) |
+| [`Johann-Pinto/Predicting-Student-Attentiveness-using-OpenCV`](https://github.com/Johann-Pinto/Predicting-Student-Attentiveness-using-OpenCV) | Predicción de atención de un alumno individual vía pose de cabeza + detección de somnolencia | Referencia directa de dominio: traducir ángulos de pose a un estado "atento / no atento" |
+| [`anupampatil44/Computer-Vision-System-for-Gauging-Student-Attentiveness-in-Online-Classes`](https://github.com/anupampatil44/Computer-Vision-System-for-Gauging-Student-Attentiveness-in-Online-Classes) | Sistema de atención estudiantil combinando pose de cabeza, expresión facial y eye-tracking | Referencia de dominio para clasificar tipos de distracción (`TipoDistraccion` en AulaViva) |
+| [`yptheangel/attention-monitor`](https://github.com/yptheangel/attention-monitor) | Traduce estadísticas de comportamiento facial en métricas de *engagement* para un docente en clases online | Inspiración para el enfoque de **reporte orientado al docente** (dashboards y métricas post-sesión) |
+| [`Bill2015/Attention-Detect-OpenCV`](https://github.com/Bill2015/Attention-Detect-OpenCV) | Detección de distracción mediante seguimiento de rotación de cabeza | Referencia conceptual para el umbral de rotación (roll) usado en `RangosAtencion` |
+
+> 📚 AulaViva **no reutiliza código directamente** de estos repositorios (salvo el modelo `.onnx` de `opencv_zoo`, usado tal cual vía la API `cv::FaceDetectorYN`); se listan como referencias de diseño y de dominio consultadas durante el desarrollo. Todo el pipeline de geometría de aula, gaze-ray contra la pizarra, tracking por continuidad espacial y reportería fue implementado desde cero para este proyecto.
+
 ## 📄 Licencia
 
 Este proyecto no se distribuye bajo niguna la licencia, es de libre uso.

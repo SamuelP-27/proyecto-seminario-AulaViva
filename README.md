@@ -209,12 +209,46 @@ En **Projects → Run → Environment**, añade al inicio del `PATH`:
 C:\<usuario>\Programas\Qt\6.11.1\msvc2022_64\bin;C:\<usuario>\Programas\OpenCV-5.0.0\build\x64\vc16\bin;%PATH%
 ```
 
-### 5. Copiar dependencias binarias
+### 5. Obtener y copiar las dependencias binarias
 
-Copia manualmente al directorio de compilación (junto a `AulaViva.exe`, ej. `build/.../debug/`):
+#### 📦 `opencv_world500d.dll`
 
-- `face_detection_yunet_2026may.onnx`
-- `opencv_world500d.dll`
+Esta es la DLL de **depuración (Debug)** de OpenCV 5.0.0, generada automáticamente al instalar el build oficial de Windows — **no hace falta compilarla ni descargarla por separado**.
+
+1. Descarga el instalador oficial de OpenCV 5.0.0:
+   👉 [`opencv-5.0.0-windows.exe`](https://github.com/opencv/opencv/releases/download/5.0.0/opencv-5.0.0-windows.exe)
+2. Ejecútalo y extrae el contenido en una ruta **sin espacios** (ej. `C:/<usuario>/Programas/OpenCV-5.0.0`). Es la misma extracción que ya usaste en el paso 2 para configurar `OPENCV_DIR`.
+3. Dentro de la carpeta extraída, localiza la DLL en:
+
+   ```text
+   OpenCV-5.0.0/build/x64/vc16/bin/opencv_world500d.dll   ← build Debug (la que usa este proyecto)
+   OpenCV-5.0.0/build/x64/vc16/bin/opencv_world500.dll    ← build Release (sin el sufijo "d")
+   ```
+
+4. Copia **`opencv_world500d.dll`** al directorio donde se genera tu ejecutable compilado, típicamente:
+
+   ```text
+   AulaViva/build/Desktop_Qt_6_11_1_MSVC2022_64bit-Debug/debug/
+   ```
+
+   (debe quedar **al lado de `AulaViva.exe`**, no en una subcarpeta).
+
+> 💡 Si compilas en modo *Release*, usa `opencv_world500.dll` (sin la "d") y cópiala en la carpeta `release/` correspondiente. El archivo `.pro` ya selecciona la librería correcta según el modo de compilación (`CONFIG(debug, debug|release)`), pero **la DLL debes copiarla tú manualmente** — qmake no lo hace de forma automática.
+
+#### 🧠 `face_detection_yunet_2026may.onnx`
+
+El modelo de detección facial esta incluido en la carpeta /modelos.
+
+Debe quedar **al lado de `AulaViva.exe`** como el archivo anterior.
+
+#### ✅ Checklist final antes de ejecutar
+
+```text
+build/.../debug/
+├── AulaViva.exe
+├── opencv_world500d.dll                       ← copiado manualmente
+└── face_detection_yunet_2026may.onnx           ← copiado manualmente
+```
 
 ### 6. Compilar y ejecutar
 

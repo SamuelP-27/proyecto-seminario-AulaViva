@@ -91,7 +91,7 @@ std::string htmlEscape(const std::string& s)
 }
 
 // Convierte una ruta de archivo local a URL file:// para poder
-// embeber imágenes (<img src=...>) en el documento
+// ver imágenes (<img src=...>) en el documento
 std::string rutaImagenHTML(const std::string& ruta)
 {
     if (ruta.empty()) return "";

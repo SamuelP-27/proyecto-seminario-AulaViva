@@ -1,4 +1,4 @@
-QT += widgets
+QT += widgets printsupport
 
 CONFIG += c++17 console
 CONFIG -= app_bundle

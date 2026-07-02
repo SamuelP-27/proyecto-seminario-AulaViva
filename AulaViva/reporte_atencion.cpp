@@ -23,6 +23,13 @@
 #include <map>
 #include <numeric>
 #include <sstream>
+#include <QTextDocument>
+#include <QPrinter>
+#include <QByteArray>
+#include <QPageSize>
+#include <QPageLayout>
+#include <QMarginsF>
+#include <chrono>
 
 // Helpers internos
 
@@ -58,6 +65,85 @@ std::string jsonStr(const std::string& s)
     }
     r += '"';
     return r;
+}
+
+std::string htmlEscape(const std::string& s)
+{
+    std::string r;
+    r.reserve(s.size());
+    for (char c : s)
+    {
+        switch (c)
+        {
+        case '&':  r += "&amp;";  break;
+        case '<':  r += "&lt;";   break;
+        case '>':  r += "&gt;";   break;
+        case '"':  r += "&quot;"; break;
+        case '\'': r += "&#39;";  break;
+        default:   r += c;        break;
+        }
+    }
+    return r;
+}
+
+// Ancho máximo (px) por defecto al que se reescalan las imágenes vistas
+// en el PDF, usado solo como respaldo si el caller no calcula uno propio.
+// exportarReportePDF() calcula y pasa el ancho real disponible en la
+// página (ver anchoUtilImagenesPx más abajo), así que en la práctica este
+// valor casi no se usa; se deja como límite de seguridad razonable.
+constexpr int kAnchoMaxImagenPDFPorDefecto = 700;
+constexpr int kCalidadJPEG                 = 85;
+
+// Carga una imagen desde disco, la reescala para que su ancho no supere
+// anchoMaximoPx y devuelve la etiqueta <img> ya lista para insertar en el
+// HTML, con el data-URI en base64 (JPEG) y los atributos width/height
+// FIJADOS EXPLÍCITAMENTE con el tamaño real ya redimensionado.
+//
+// Por qué se fija el ancho como atributo HTML (width="...") y no solo con
+// CSS (max-width:100%): el motor de render HTML de Qt (QTextDocument, el
+// que convierte este HTML a PDF) interpreta el tamaño en píxeles de una
+// imagen con su propia métrica interna de "píxel de documento", que NO
+// coincide automáticamente con la resolución configurada en QPrinter. Si
+// no se sincronizan (ver documento.setPageSize() en exportarReportePDF),
+// una imagen puede terminar ocupando más ancho físico que el área
+// imprimible de la página y quedar cortada en el margen derecho —
+// exactamente el problema reportado. Fijar aquí el ancho ya calculado
+// para caber en la página, tanto en el redimensionado real del buffer
+// JPEG como en el atributo width= del <img>, hace que el resultado sea
+// determinístico y ya no dependa de esa métrica interna ni del soporte
+// (limitado) de Qt para porcentajes en CSS.
+//
+// Si la imagen no se puede leer, devuelve "" y el caller simplemente omite
+// toda la sección (título incluido).
+std::string imagenADataURI(const std::string& ruta,
+                           int anchoMaximoPx = kAnchoMaxImagenPDFPorDefecto)
+{
+    if (ruta.empty())
+        return "";
+
+    cv::Mat img = cv::imread(ruta, cv::IMREAD_COLOR);
+    if (img.empty())
+        return "";
+
+    if (anchoMaximoPx > 0 && img.cols > anchoMaximoPx)
+    {
+        const double escala = static_cast<double>(anchoMaximoPx) / img.cols;
+        cv::resize(img, img, cv::Size(), escala, escala, cv::INTER_AREA);
+    }
+
+    std::vector<uchar> buffer;
+    std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, kCalidadJPEG };
+    if (!cv::imencode(".jpg", img, buffer, params))
+        return "";
+
+    const QByteArray bytes(reinterpret_cast<const char*>(buffer.data()),
+                           static_cast<int>(buffer.size()));
+    const QByteArray b64 = bytes.toBase64();
+
+    std::ostringstream tag;
+    tag << "<img src='data:image/jpeg;base64," << b64.toStdString() << "' "
+        << "width='" << img.cols << "' height='" << img.rows << "'>";
+    return tag.str();
 }
 
 // Frecuencia de cada TipoDistraccion en un vector de eventos de un puesto
@@ -1029,7 +1115,7 @@ bool exportarReporteJSON(const ReporteClase& rep, const std::string& rutaSalida)
     return f.good();
 }
 
-// exportarMomentosCriticosCSV
+// exportarMomentosCriticosCSV y pdf.
 
 bool exportarMomentosCriticosCSV(const ReporteClase& rep,
                                  const std::string&  rutaSalida)
@@ -1051,4 +1137,396 @@ bool exportarMomentosCriticosCSV(const ReporteClase& rep,
     }
 
     return f.good();
+}
+
+// Exporta el reporte completo de la clase a un único PDF (pensado para
+// entregar al docente sin que tenga que abrir cinco archivos distintos
+// (JSON, CSVs, PNGs sueltos)). Se arma el reporte
+// como un string HTML (tablas + imágenes) y se le pide a Qt que
+// lo "imprima" a PDF con QTextDocument + QPrinter.
+//
+// rutaTimelinePNG y rutasTarjetasPNG son opcionales: si vienen vacíos,
+// el PDF se genera igual pero sin esas secciones (útil si algo falló más
+// arriba en el pipeline y no se llegaron a generar las imágenes).
+bool exportarReportePDF(const ReporteClase& reporte,
+                        const std::string& rutaSalida,
+                        const std::string& rutaTimelinePNG,
+                        const std::vector<std::string>& rutasTarjetasPNG)
+{
+    if (rutaSalida.empty())
+        return false;
+
+    // Configuración de la impresora/documento PDF
+    //
+    // Se crea y configura ANTES de construir el HTML porque necesitamos
+    // conocer el ancho útil REAL de la página impresa para reescalar el
+    // timeline y las tarjetas de desempeño a un tamaño que quepa siempre
+    // dentro de la hoja (sin esto, las imágenes se insertaban a un ancho
+    // fijo en píxeles (900) sin relación con la resolución/página final),
+    // por lo que terminaban más anchas que el área imprimible y se
+    // recortaban en el margen derecho.
+    QPrinter printer(QPrinter::ScreenResolution);
+    printer.setResolution(150); // suficiente para lectura/impresión normal
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(QString::fromStdString(rutaSalida));
+    printer.setPageSize(QPageSize(QPageSize::A4));
+    printer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
+
+    // Ancho útil disponible para imágenes: el ancho de página de
+    // márgenes (pageRect() excluye los márgenes configurados arriba), con
+    // un 6% de adicional para que la imagen nunca toque el borde
+    // del área imprimible (para que se vea bonito).
+    const int anchoUtilImagenesPx =
+        static_cast<int>(printer.pageRect(QPrinter::DevicePixel).width() * 0.94);
+
+    std::ostringstream html;
+
+    html << "<html><head><meta charset='UTF-8'>";
+
+    html << "<style>";
+    html << "body { font-family: Arial, sans-serif; font-size: 10pt; color: #222; }";
+    html << "h1 { color: #1f3b57; font-size: 20pt; }";
+    html << "h2 { color: #264b6a; border-bottom: 1px solid #aaa; padding-bottom: 4px; }";
+    html << "h3 { color: #333; }";
+    html << "table { border-collapse: collapse; width: 100%; margin-bottom: 14px; }";
+    html << "th { background: #e9eef5; font-weight: bold; }";
+    html << "th, td { border: 1px solid #aaa; padding: 5px; }";
+    // tabla de KPIs de la sección 1: mismas filas/columnas para forzar el
+    // salto de línea, pero sin bordes visibles (no es una tabla de datos).
+    html << "table.kpi-table, table.kpi-table td { border: none; }";
+    html << "table.kpi-table td { padding: 2px 6px 2px 0; }";
+    html << "table.kpi-table td:first-child { width: 220px; white-space: nowrap; }";
+    html << ".ok { color: #177a35; font-weight: bold; }";
+    html << ".warn { color: #b26a00; font-weight: bold; }";
+    html << ".bad { color: #a32020; font-weight: bold; }";
+    html << ".small { color: #666; font-size: 8pt; }";
+    // el ancho real de cada <img> ya viene fijado por su atributo
+    // width= (ver imagenADataURI); esta regla solo aporta el margen.
+    html << "img { margin: 8px 0 16px 0; }";
+    html << "</style>";
+
+    html << "</head><body>";
+
+    html << "<h1>Reporte Final de Atencion - AulaViva</h1>";
+
+    // Sección 1: datos generales del video
+    // Lo básico para ubicar el reporte: qué video es, cuánto dura, a qué
+    // fps se procesó y cuántos alumnos/puestos se alcanzaron a analizar.
+    // NOTA: esta sección antes usaba <span class='kpi' style="display:block">
+    // por cada dato, esperando que cada uno cayera en su propia línea. El
+    // motor de render HTML de Qt (QTextDocument) no respeta display:block
+    // sobre <span>, los trata como inline, y el resultado era todo el texto
+    // corrido sin espacio ("...mp4Duracion total: 00:25..."). Se reemplaza
+    // por una tabla sin bordes visibles (misma técnica que el resto del
+    // reporte), que sí garantiza una fila = una línea en Qt.
+    html << "<h2>1. Datos generales del video</h2>";
+    html << "<table class='kpi-table'>";
+    html << "<tr><td><b>Video:</b></td><td>"
+         << htmlEscape(reporte.nombreVideo) << "</td></tr>";
+    html << "<tr><td><b>Duracion total:</b></td><td>"
+         << formatearTiempo(reporte.duracionTotalS)
+         << " (" << std::fixed << std::setprecision(2)
+         << reporte.duracionTotalS << " s)</td></tr>";
+    html << "<tr><td><b>FPS:</b></td><td>"
+         << std::fixed << std::setprecision(2) << reporte.fps << "</td></tr>";
+    html << "<tr><td><b>Total de frames:</b></td><td>"
+         << reporte.totalFrames << "</td></tr>";
+    html << "<tr><td><b>Alumnos/puestos analizados:</b></td><td>"
+         << reporte.metricasPorAlumno.size() << "</td></tr>";
+    html << "</table>";
+
+    // Sección 2: resumen global de la clase
+    // Una sola fila con los KPIs agregados, para que el docente tenga el
+    // panorama completo sin leer el detalle por alumno si no le interesa.
+    html << "<h2>2. Resumen global de la clase</h2>";
+    html << "<table>";
+    html << "<tr>"
+         << "<th>Atencion promedio</th>"
+         << "<th>Total eventos distraccion</th>"
+         << "<th>Duracion media distraccion</th>"
+         << "<th>Duracion maxima distraccion</th>"
+         << "</tr>";
+
+    html << "<tr>";
+    html << "<td>" << std::fixed << std::setprecision(1)
+         << reporte.porcentajeAtencionGlobal << " %</td>";
+    html << "<td>" << reporte.totalEventosDistraccion << "</td>";
+    html << "<td>" << std::fixed << std::setprecision(2)
+         << reporte.duracionMediaDistracS << " s</td>";
+    html << "<td>" << std::fixed << std::setprecision(2)
+         << reporte.duracionMaxDistracS << " s</td>";
+    html << "</tr>";
+    html << "</table>";
+
+    html << "<p><b>Conclusion general:</b> "
+         << htmlEscape(reporte.conclusionGeneral)
+         << "</p>";
+
+    // Sección 3: detalle por alumno (tabla)
+    // Una fila por alumno con todas sus métricas, para comparar entre
+    // ellos de un vistazo (quién estuvo más atento, quién tuvo más
+    // eventos, etc).
+    html << "<h2>3. Detalle por alumno</h2>";
+    html << "<table>";
+    html << "<tr>"
+         << "<th>Alumno / Puesto</th>"
+         << "<th>Frames analizados</th>"
+         << "<th>Tiempo atento</th>"
+         << "<th>Tiempo distraido</th>"
+         << "<th>Sin deteccion</th>"
+         << "<th>% Atencion</th>"
+         << "<th>Eventos</th>"
+         << "<th>Duracion media</th>"
+         << "<th>Duracion maxima</th>"
+         << "</tr>";
+
+    for (const auto& m : reporte.metricasPorAlumno)
+    {
+        // Si no se pudo asociar un nombre real al puesto (por ejemplo,
+        // porque sala_config no traía el campo "estudiante"), se usa el
+        // id del puesto como identificador de respaldo.
+        const std::string nombre =
+            m.nombreAlumno.empty()
+                ? ("Puesto #" + std::to_string(m.idPuesto))
+                : m.nombreAlumno;
+
+        const double tiempoAtentoS = m.framesAtento / reporte.fps;
+        const double tiempoDistS   = m.framesDistraido / reporte.fps;
+
+        html << "<tr>";
+        html << "<td>" << htmlEscape(nombre) << "</td>";
+        html << "<td>" << m.framesAnalizados << "</td>";
+        html << "<td>" << formatearTiempo(tiempoAtentoS) << "</td>";
+        html << "<td>" << formatearTiempo(tiempoDistS) << "</td>";
+        html << "<td>" << m.framesSinDeteccion << "</td>";
+        html << "<td>" << std::fixed << std::setprecision(1)
+             << m.porcentajeAtencion << " %</td>";
+        html << "<td>" << m.numEventosDistrac << "</td>";
+        html << "<td>" << std::fixed << std::setprecision(2)
+             << m.duracionMediaDistracS << " s</td>";
+        html << "<td>" << std::fixed << std::setprecision(2)
+             << m.duracionMaxDistracS << " s</td>";
+        html << "</tr>";
+    }
+
+    html << "</table>";
+
+    // Sección 4: conclusiones pedagógicas por alumno
+    // Acá se reutiliza generarConclusionAlumno(), la misma función que
+    // arma el texto que va en la tarjeta de desempeño, para no duplicar
+    // la lógica de redacción. Debajo de cada conclusión va la tabla de
+    // frecuencia de tipos de distracción, ordenada de mayor a menor, para
+    // que se vea de inmediato cuál fue el problema más recurrente.
+    html << "<h2>4. Conclusiones por alumno</h2>";
+
+    for (const auto& m : reporte.metricasPorAlumno)
+    {
+        const std::string nombre =
+            m.nombreAlumno.empty()
+                ? ("Puesto #" + std::to_string(m.idPuesto))
+                : m.nombreAlumno;
+
+        html << "<h3>" << htmlEscape(nombre) << "</h3>";
+        html << "<p>"
+             << htmlEscape(generarConclusionAlumno(m, reporte.eventos, reporte.fps))
+             << "</p>";
+
+        auto freq = contarTiposDistrac(reporte.eventos, m.idPuesto);
+        if (!freq.empty())
+        {
+            // Se pasa de map<Tipo,int> a un vector de pares (conteo, tipo)
+            // solo para poder ordenar por conteo descendente; el map por
+            // sí solo ordena por clave, no por valor.
+            std::vector<std::pair<int, TipoDistraccion>> ordenado;
+            for (const auto& kv : freq)
+                ordenado.emplace_back(kv.second, kv.first);
+
+            std::sort(ordenado.begin(), ordenado.end(),
+                      [](const auto& a, const auto& b) {
+                          return a.first > b.first;
+                      });
+
+            html << "<table>";
+            html << "<tr><th>Tipo de distraccion</th><th>Veces</th></tr>";
+
+            for (const auto& kv : ordenado)
+            {
+                html << "<tr>";
+                html << "<td>" << htmlEscape(nombreTipoDistraccion(kv.second)) << "</td>";
+                html << "<td>" << kv.first << "</td>";
+                html << "</tr>";
+            }
+
+            html << "</table>";
+        }
+    }
+
+    // Sección 5: momentos críticos
+    // Los tramos de la clase con mayor densidad de distracciones
+    // simultáneas (ya calculados antes por identificarMomentosCriticos()
+    // y guardados en reporte.momentosCriticos). Sirve para que el docente
+    // sepa exactamente en qué minuto la clase "se le fue" a la mayoría.
+    html << "<h2>5. Momentos criticos</h2>";
+
+    if (reporte.momentosCriticos.empty())
+    {
+        html << "<p>No se detectaron momentos criticos relevantes.</p>";
+    }
+    else
+    {
+        html << "<table>";
+        html << "<tr>"
+             << "<th>#</th>"
+             << "<th>Frame inicio</th>"
+             << "<th>Frame fin</th>"
+             << "<th>Tiempo inicio</th>"
+             << "<th>Tiempo fin</th>"
+             << "<th>Frames distraidos</th>"
+             << "<th>Densidad distrac/s</th>"
+             << "</tr>";
+
+        for (size_t i = 0; i < reporte.momentosCriticos.size(); ++i)
+        {
+            const auto& mc = reporte.momentosCriticos[i];
+
+            html << "<tr>";
+            html << "<td>" << (i + 1) << "</td>";
+            html << "<td>" << mc.frameInicio << "</td>";
+            html << "<td>" << mc.frameFin << "</td>";
+            html << "<td>" << formatearTiempo(mc.tiempoInicioS) << "</td>";
+            html << "<td>" << formatearTiempo(mc.tiempoFinS) << "</td>";
+            html << "<td>" << mc.numDistracciones << "</td>";
+            html << "<td>" << std::fixed << std::setprecision(3)
+                 << mc.densidad << "</td>";
+            html << "</tr>";
+        }
+
+        html << "</table>";
+    }
+
+    // Sección 6: listado de eventos de distracción
+    // Un detalle del reporte: cada distracción individual,
+    // de quién fue, de qué tipo y cuánto duró. Es la sección más larga
+    // si hubo muchos eventos, pero queda al final de las tablas para no
+    // saturar el resumen ejecutivo de las primeras páginas.
+    html << "<h2>6. Eventos de distraccion</h2>";
+
+    if (reporte.eventos.empty())
+    {
+        html << "<p>No se registraron eventos de distraccion.</p>";
+    }
+    else
+    {
+        html << "<table>";
+        html << "<tr>"
+             << "<th>#</th>"
+             << "<th>Alumno / Puesto</th>"
+             << "<th>Tipo</th>"
+             << "<th>Frame inicio</th>"
+             << "<th>Frame fin</th>"
+             << "<th>Inicio</th>"
+             << "<th>Fin</th>"
+             << "<th>Duracion</th>"
+             << "</tr>";
+
+        for (size_t i = 0; i < reporte.eventos.size(); ++i)
+        {
+            const auto& ev = reporte.eventos[i];
+
+            const std::string nombre =
+                ev.nombreAlumno.empty()
+                    ? ("Puesto #" + std::to_string(ev.idPuesto))
+                    : ev.nombreAlumno;
+
+            const double duracion = ev.tiempoFinS - ev.tiempoInicioS;
+
+            html << "<tr>";
+            html << "<td>" << (i + 1) << "</td>";
+            html << "<td>" << htmlEscape(nombre) << "</td>";
+            html << "<td>" << htmlEscape(nombreTipoDistraccion(ev.tipo)) << "</td>";
+            html << "<td>" << ev.frameInicio << "</td>";
+            html << "<td>" << ev.frameFin << "</td>";
+            html << "<td>" << formatearTiempo(ev.tiempoInicioS) << "</td>";
+            html << "<td>" << formatearTiempo(ev.tiempoFinS) << "</td>";
+            html << "<td>" << std::fixed << std::setprecision(2)
+                 << duracion << " s</td>";
+            html << "</tr>";
+        }
+
+        html << "</table>";
+    }
+
+    // Sección 7: timeline visual
+    // imagenADataURI() lee el PNG desde disco, lo reescala/comprime y lo
+    // devuelve como data-URI base64 listo para meter en el <img>. Si la
+    // imagen no existe o no se pudo leer, devuelve "" y directamente se
+    // omite toda la sección (no tiene sentido dejar el título sin imagen).
+    if (!rutaTimelinePNG.empty())
+    {
+        const std::string imgTag = imagenADataURI(rutaTimelinePNG, anchoUtilImagenesPx);
+        if (!imgTag.empty())
+        {
+            html << "<h2>7. Timeline visual de atencion</h2>";
+            html << "<p class='small'>Verde = atento, rojo = distraido, gris = sin deteccion.</p>";
+            html << imgTag;
+        }
+    }
+
+    // Sección 8: tarjetas de desempeño por alumno
+    // Mismo tratamiento que el timeline, pero una imagen por alumno. Cada
+    // tarjeta que falle en cargarse simplemente se salta, sin que eso
+    // rompa el resto del PDF.
+    if (!rutasTarjetasPNG.empty())
+    {
+        html << "<h2>8. Tarjetas de desempeno por alumno</h2>";
+
+        for (const auto& rutaTarjeta : rutasTarjetasPNG)
+        {
+            const std::string imgTag = imagenADataURI(rutaTarjeta, anchoUtilImagenesPx);
+            if (!imgTag.empty())
+            {
+                html << imgTag;
+            }
+        }
+    }
+
+    // Sección 9: nota de cierre
+    // Recordatorio de que este PDF es un resumen, no reemplaza los CSV
+    // frame a frame que sí se guardan aparte para quien quiera hacer un
+    // análisis más fino.
+    html << "<h2>9. Archivos complementarios</h2>";
+    html << "<p class='small'>";
+    html << "Este PDF resume los resultados principales. Los datos frame a frame "
+            "siguen disponibles en los CSV generados por el sistema: "
+            "atencion_frames.csv, atencion_eventos.csv, atencion_metricas.csv, "
+            "poses.csv, coordenadas_rostros.csv y momentos_criticos.csv.";
+    html << "</p>";
+
+    html << "</body></html>";
+
+    // Render final: HTML -> PDF vía Qt
+    // Se cronometra esta parte porque es, por lejos, la más pesada de toda
+    // la función (todo lo de arriba es solo concatenar strings). Sirve
+    // para detectar en consola si el PDF se está demorando más de lo
+    // normal, por ejemplo si alguien vuelve a subir la resolución del
+    // printer o si entran demasiadas tarjetas.
+    const auto tInicio = std::chrono::steady_clock::now();
+
+    QTextDocument documento;
+    documento.setHtml(QString::fromUtf8(html.str().c_str()));
+    documento.setPageSize(printer.pageRect(QPrinter::DevicePixel).size());
+    documento.print(&printer);
+
+    const auto tFin = std::chrono::steady_clock::now();
+    const double segundos =
+        std::chrono::duration<double>(tFin - tInicio).count();
+    std::cout << "  [exportarReportePDF] generado en "
+              << std::fixed << std::setprecision(2) << segundos << " s\n";
+
+    // QPrinter::print() no devuelve un booleano de éxito, así que el
+    // chequeo real es abrir el archivo resultante y confirmar que quedó
+    // con contenido. Si algo falló silenciosamente (permisos, disco lleno,
+    // ruta inválida), esto lo detecta en vez de reportar éxito.
+    std::ifstream verif(rutaSalida, std::ios::binary | std::ios::ate);
+    return verif.good() && verif.tellg() > 0;
 }

@@ -124,4 +124,8 @@ std::string generarConclusionAlumno(const MetricasPuesto&                  m,
                                     const std::vector<EventoDistraccion>& eventos,
                                     double                                fps);
 
+
+// También la exporta como PDF.
+bool exportarReportePDF(const ReporteClase& reporte,const std::string& rutaSalida, const std::string& rutaTimelinePNG = "", const std::vector<std::string>& rutasTarjetasPNG = {});
+
 #endif // REPORTE_ATENCION_H

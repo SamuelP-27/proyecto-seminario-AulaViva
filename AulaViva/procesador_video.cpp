@@ -848,7 +848,7 @@ void procesarVideo(const std::string& rutaVideo,
 
         const fs::path rutaPoseCSV = carpeta / "poses.csv";
         std::ofstream  archivoPose(rutaPoseCSV.string());
-        archivoPose << "frame,id_persona,id_puesto,nombre_estudiante,"
+        archivoPose << "frame,timestamp_p,id_persona,id_puesto,nombre_estudiante,"
                        "pose_valida,yaw,pitch,roll,estado_atencion,tipo_distraccion\n";
 
         // Evaluador de atención
@@ -1032,7 +1032,10 @@ void procesarVideo(const std::string& rutaVideo,
                         evaluador.evaluarFrame(pose, p.landmarks, p.rect,
                                                idPuesto, frameActual);
 
-                    archivoPose << frameActual << ',' << p.id << ','
+                    const double timestampS= (fps>0.0) ? static_cast<double>(frameActual) /fps : 0.0;
+                    archivoPose << frameActual << ','
+                                << std::fixed << std::setprecision(3) << timestampS << ','
+                                << p.id << ','
                                 << idPuesto << ','
                                 << nomEstudiante << ','
                                 << (pose.validar ? 1 : 0) << ','
@@ -1232,6 +1235,7 @@ void procesarVideo(const std::string& rutaVideo,
 
             std::vector<cv::Mat>       tarjetas;
             std::vector<std::string>   nombresAlumnos;
+            std::vector<std::string>   rutasTarjetasPDF;
             for (const auto& m : reporte.metricasPorAlumno) {
                 const std::string nombre = m.nombreAlumno.empty()
                 ? ("Puesto #" + std::to_string(m.idPuesto))
@@ -1240,23 +1244,41 @@ void procesarVideo(const std::string& rutaVideo,
                                                   (m.nombreAlumno.empty() ? ("puesto_" + std::to_string(m.idPuesto))
                                                                           : m.nombreAlumno) + ".png";
                 const fs::path rutaTarjeta = carpetaTarjetas / nombreArchivo;
+                rutasTarjetasPDF.push_back(rutaTarjeta.string());
                 tarjetas.push_back(generarTarjetaDesempeño(
                     m, reporte.eventos, reporte.fps, configSala,
                     primerFrame, rutaTarjeta.string()));
                 nombresAlumnos.push_back(nombre);
             }
 
-            // 5. Exporta datos y métricas estandarizadas a JSON y CSV.
-            const fs::path rutaReporteJSON   = carpeta / "reporte_atencion.json";
-            const fs::path rutaMomentosCSV   = carpeta / "momentos_criticos.csv";
-            const bool jsonOk     = exportarReporteJSON(reporte, rutaReporteJSON.string());
-            const bool momentosOk = exportarMomentosCriticosCSV(reporte, rutaMomentosCSV.string());
+            // 5. Exporta datos y métricas estandarizadas a JSON, pdf y CSV.
+            const fs::path rutaReporteJSON = carpeta / "reporte_atencion.json";
+            const fs::path rutaMomentosCSV = carpeta / "momentos_criticos.csv";
+            const fs::path rutaReportePDF  = carpeta / "reporte_atencion.pdf";
+
+            const bool jsonOk = exportarReporteJSON(
+                reporte,
+                rutaReporteJSON.string()
+                );
+
+            const bool momentosOk = exportarMomentosCriticosCSV(
+                reporte,
+                rutaMomentosCSV.string()
+                );
+
+            const bool pdfOk = exportarReportePDF(
+                reporte,
+                rutaReportePDF.string(),
+                rutaTimeline.string(),
+                rutasTarjetasPDF
+                );
 
             std::cout << "Reporte final exportado en:\n"
                       << "  " << rutaTimeline.string()    << "\n"
                       << "  " << carpetaTarjetas.string() << " (tarjetas por alumno)\n"
                       << "  " << rutaReporteJSON.string() << (jsonOk ? "" : "  [ERROR]") << "\n"
-                      << "  " << rutaMomentosCSV.string() << (momentosOk ? "" : "  [ERROR]") << "\n";
+                      << "  " << rutaMomentosCSV.string() << (momentosOk ? "" : "  [ERROR]") << "\n"
+                      << "  " << rutaReportePDF.string()  << (pdfOk ? "" : "  [ERROR]") << "\n";
 
             // 6. Muestra los resultados principales en una interfaz visual Qt:
             // - Primero el QMessageBox de resumen (informe final) para que

@@ -57,6 +57,8 @@ El sistema no se limita a "detectar caras": construye un **modelo geométrico de
 
 - 🖼️ **Visualización lista para el docente** — Timeline de atención por alumno (verde/rojo/gris frame a frame), panel de "Atención General de la Sala" en tiempo real con barras apiladas, y **tarjetas de desempeño individuales (PNG)** con foto real del puesto, barra de progreso y tipos de distracción más frecuentes.
 
+- 📄 **Reporte final en PDF, listo para entregar al docente** — `exportarReportePDF()` compone un único PDF (renderizado vía `QTextDocument` + `QPrinter`) que reúne datos generales del video, resumen global de la clase, detalle y conclusión pedagógica por alumno, momentos críticos, eventos de distracción, timeline visual y tarjetas de desempeño — sin que el profesor tenga que abrir CSVs ni PNGs sueltos.
+
 ---
 
 ## 🛠️ Stack Tecnológico
@@ -64,7 +66,7 @@ El sistema no se limita a "detectar caras": construye un **modelo geométrico de
 | Tecnología | Versión / Detalle | Propósito en el proyecto |
 |---|---|---|
 | **C++** | C++17 | Lenguaje base — `std::filesystem`, `std::async`, `std::deque`, RAII |
-| **Qt** | 6.11.1 · módulo `widgets` | Diálogos de selección de archivo, asistente de calibración de sala, visor de reportes y tarjetas |
+| **Qt** | 6.11.1 · módulos `widgets`, `printsupport` | Diálogos de selección de archivo, asistente de calibración de sala, y generación del reporte PDF (`QTextDocument` + `QPrinter`) |
 | **OpenCV** | 5.0.0 (`opencv_world500`) | Captura de video, primitivas gráficas (`cv::Mat`, `cv::Rect`, dibujo de overlays) y motor DNN |
 | **YuNet** | `face_detection_yunet_2026may.onnx` | Modelo de detección facial (bbox + 5 landmarks), ejecutado vía `cv::FaceDetectorYN` |
 | **std::async / std::future** | STL (C++17) | Paralelismo portable para I/O de frames sin bloquear el bucle principal |
@@ -124,6 +126,7 @@ El flujo va desde la **selección del video** hasta los **reportes finales**, pa
 │    JSON: reporte_atencion.json,                │
 │          rangos_atencion.json                  │
 │    PNG: frames anotados, tarjetas de desempeño │
+│    PDF: reporte_atencion.pdf (para el docente) │
 └────────────────────────────────────────────────┘
 ```
 
@@ -131,6 +134,7 @@ El flujo va desde la **selección del video** hasta los **reportes finales**, pa
 
 | Archivo / carpeta | Contenido |
 |---|---|
+| `reporte_atencion.pdf` | Reporte final consolidado para el docente: resumen ejecutivo, detalle y conclusiones por alumno, momentos críticos, eventos, timeline y tarjetas de desempeño, todo en un solo archivo listo para imprimir o compartir |
 | `frames_extraidos/anotados/` | Frames del video con overlays de detección y estado de atención |
 | `tarjetas_desempeño/` | Tarjeta PNG individual por alumno (progreso, métricas, conclusión) |
 | `atencion_metricas.csv` | % de atención y métricas consolidadas por alumno |
@@ -141,6 +145,8 @@ El flujo va desde la **selección del video** hasta los **reportes finales**, pa
 | `momentos_criticos.csv` | Ventanas de tiempo con mayor densidad de distracciones simultáneas |
 | `rangos_atencion.json` | Parámetros geométricos de calibración por puesto |
 | `reporte_atencion.json` | Reporte agregado final de la sesión |
+
+> 👨‍🏫 **Pensado para el profesor:** de todos estos archivos, `reporte_atencion.pdf` es el único diseñado para consumo directo sin herramientas adicionales — los CSV/JSON quedan disponibles para quien quiera un análisis más fino, pero el PDF ya trae todo interpretado y redactado (incluida la conclusión pedagógica por alumno).
 
 ---
 
@@ -159,7 +165,7 @@ AulaViva/
 │
 ├── analizador_atencion.h / .cpp # Núcleo de clasificación: EvaluadorAtencion, test rayo-pizarra
 ├── procesador_video.h / .cpp    # Pipeline principal: captura, YuNet, tracking, overlays, CSV
-├── reporte_atencion.h / .cpp    # Reporte final: momentos críticos, tarjetas, export JSON/CSV
+├── reporte_atencion.h / .cpp    # Reporte final: momentos críticos, tarjetas, export JSON/CSV/PDF
 │
 ├── modelos/                     # (No versionado) face_detection_yunet_2026may.onnx
 ├── docs/
@@ -281,7 +287,7 @@ nmake        # o jom, según tu configuración
 1. Ejecuta `AulaViva.exe` y selecciona el video de la clase (`.mp4`, `.avi`, `.mkv`).
 2. Si es la primera vez con ese video, dibuja la pizarra (arrastra + rueda del mouse para rotar) y un rectángulo por cada puesto de alumno.
 3. Guarda la configuración — el análisis del video comienza automáticamente.
-4. Al finalizar, revisa el timeline de atención, las tarjetas de desempeño y los CSV/JSON generados en la carpeta de salida.
+4. Al finalizar, revisa **`reporte_atencion.pdf`** — el reporte consolidado listo para el docente, con timeline de atención, tarjetas de desempeño por alumno y conclusiones pedagógicas — además de los CSV/JSON detallados generados en la carpeta de salida.
 
 ---
 

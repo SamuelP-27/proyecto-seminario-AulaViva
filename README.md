@@ -53,11 +53,11 @@ El sistema no se limita a "detectar caras": construye un **modelo geométrico de
 
 - 🚨 **Detección automática de "momentos críticos"** — `identificarMomentosCriticos()` recorre los eventos de distracción con una **ventana deslizante configurable** y reporta el top-N de tramos con mayor densidad de distracciones por segundo.
 
-- 📊 **Reportería exhaustiva y trazable** — Exportación a CSV (frames, eventos, métricas, coordenadas, momentos críticos) y JSON (reporte agregado, rangos de calibración), más una **conclusión pedagógica generada automáticamente** por alumno que referencia el tramo exacto (MM:SS) de su peor episodio de distracción.
+- 📊 **Reportes exhaustivos y trazables** — Exportación a CSV (frames, eventos, métricas, coordenadas, momentos críticos) y JSON (reporte agregado, rangos de calibración), más una **conclusión pedagógica generada automáticamente** por alumno que referencia el tramo exacto (MM:SS) de su peor episodio de distracción.
 
 - 🖼️ **Visualización lista para el docente** — Timeline de atención por alumno (verde/rojo/gris frame a frame), panel de "Atención General de la Sala" en tiempo real con barras apiladas, y **tarjetas de desempeño individuales (PNG)** con foto real del puesto, barra de progreso y tipos de distracción más frecuentes.
 
-- 📄 **Reporte final en PDF, listo para entregar al docente** — `exportarReportePDF()` compone un único PDF (renderizado vía `QTextDocument` + `QPrinter`) que reúne datos generales del video, resumen global de la clase, detalle y conclusión pedagógica por alumno, momentos críticos, eventos de distracción, timeline visual y tarjetas de desempeño — sin que el profesor tenga que abrir CSVs ni PNGs sueltos.
+- 📄 **Reporte final en PDF, listo para imprimir** — `exportarReportePDF()` compone un único PDF (renderizado vía `QTextDocument` + `QPrinter`) que reúne datos generales del video, resumen global de la clase, detalle y conclusión pedagógica por alumno, momentos críticos, eventos de distracción, timeline visual y tarjetas de desempeño (sin que el profesor tenga que abrir CSVs ni PNGs sueltos).
 
 ---
 

@@ -514,9 +514,7 @@ ResultadoFrameAtencion EvaluadorAtencion::evaluarFrame(
     return evaluarFrame(pose, lmVacio, bboxVacio, idPuesto, frame);
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MÓDULO: Métricas de Atención por Puesto
-// ════════════════════════════════════════════════════════════════════════════
+// Métricas de Atención por Puesto
 
 // Calcula y consolida las estadísticas de atención individuales para cada puesto.
 // Recorre el historial de frames y eventos acumulados para estructurar las métricas finales.
@@ -575,9 +573,7 @@ std::vector<MetricasPuesto> EvaluadorAtencion::metricasPorPuesto() const
     return metricas;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MÓDULO: Consulta de Rangos
-// ════════════════════════════════════════════════════════════════════════════
+// Consulta de Rangos
 
 // Devuelve los límites angulares (Yaw, Pitch, Roll) permitidos para un puesto específico.
 const RangosAtencion* EvaluadorAtencion::rangosParaPuesto(int idPuesto) const
@@ -586,9 +582,7 @@ const RangosAtencion* EvaluadorAtencion::rangosParaPuesto(int idPuesto) const
     return ep ? &ep->rangos : nullptr; // Si el puesto existe, retorna el puntero a sus rangos, si no, nullptr
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MÓDULO: Exportación de Reportes en Formato CSV
-// ════════════════════════════════════════════════════════════════════════════
+// Exportación de Reportes en Formato CSV
 
 // Exporta el desglose completo frame a frame de cada puesto analizado en la sesión.
 bool EvaluadorAtencion::guardarCSVFrames(const std::string& ruta) const
